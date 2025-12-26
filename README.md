@@ -1,1 +1,1 @@
-# Prop Admin v2
+# Prop Admin v2 - MVP
