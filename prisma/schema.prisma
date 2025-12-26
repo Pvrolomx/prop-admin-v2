@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PropertyType {
+  HOUSE
+  APARTMENT
+  CONDO
+  COMMERCIAL
+  LAND
+  MIXED
+}
+
+enum PropertyStatus {
+  ACTIVE
+  RENTED
+  MAINTENANCE
+  INACTIVE
+}
+
+model Property {
+  id          String         @id @default(cuid())
+  name        String
+  type        PropertyType
+  status      PropertyStatus @default(ACTIVE)
+  address     String
+  city        String
+  state       String
+  zipCode     String?
+  area        Float?
+  bedrooms    Int?
+  bathrooms   Float?
+  description String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  roles         PropertyRole[]
+  contracts     Contract[]
+  documents     Document[]
+  transactions  Transaction[]
+  incidents     Incident[]
+  interactions  Interaction[]
+}
+
+enum RoleType {
+  OWNER
+  TENANT
+  MANAGER
+  CONTACT
+}
+
+model PropertyRole {
+  id         String   @id @default(cuid())
+  propertyId String
+  personId   String
+  roleType   RoleType
+  startDate  DateTime @default(now())
+  endDate    DateTime?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  @@index([propertyId])
+  @@index([personId])
+}
+
+model Person {
+  id           String   @id @default(cuid())
+  name         String
+  email        String?
+  phone        String?
+  rfc          String?
+  curp         String?
+  nationalId   String?
+  address      String?
+  city         String?
+  state        String?
+  zipCode      String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  propertyRoles PropertyRole[]
+  documents     Document[]
+  interactions  Interaction[]
+}
+
+enum ContractType {
+  RENTAL
+  SALE
+  SERVICE
+  MAINTENANCE
+}
+
+enum ContractStatus {
+  ACTIVE
+  PENDING
+  EXPIRED
+  CANCELLED
+}
+
+model Contract {
+  id            String          @id @default(cuid())
+  propertyId    String
+  type          ContractType
+  status        ContractStatus @default(PENDING)
+  startDate     DateTime
+  endDate       DateTime?
+  monthlyAmount Float?
+  depositAmount Float?
+  terms         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  documents    Document[]
+  transactions Transaction[]
+  
+  @@index([propertyId])
+}
+
+enum DocumentType {
+  ID
+  RFC
+  CURP
+  PROOF_ADDRESS
+  CONTRACT
+  RECEIPT
+  INVOICE
+  PHOTO
+  OTHER
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  name        String
+  type        DocumentType
+  url         String
+  propertyId  String?
+  personId    String?
+  contractId  String?
+  metadata    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  person   Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  
+  @@index([propertyId])
+  @@index([personId])
+  @@index([contractId])
+}
+
+enum TransactionType {
+  RENT_PAYMENT
+  DEPOSIT
+  MAINTENANCE
+  UTILITY
+  INSURANCE
+  TAX
+  OTHER
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  propertyId  String
+  contractId  String?
+  type        TransactionType
+  amount      Float
+  date        DateTime
+  description String?
+  reference   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  property Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  
+  @@index([propertyId])
+  @@index([contractId])
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model Incident {
+  id          String           @id @default(cuid())
+  propertyId  String
+  title       String
+  description String?
+  severity    IncidentSeverity @default(MEDIUM)
+  status      IncidentStatus   @default(OPEN)
+  reportedAt  DateTime         @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  
+  @@index([propertyId])
+}
+
+model Interaction {
+  id          String   @id @default(cuid())
+  propertyId  String?
+  personId    String?
+  type        String
+  summary     String
+  details     String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  person   Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  
+  @@index([propertyId])
+  @@index([personId])
+}
+
+enum AlertType {
+  CONTRACT_EXPIRY
+  PAYMENT_DUE
+  MAINTENANCE
+  DOCUMENT_EXPIRY
+  INCIDENT
+  OTHER
+}
+
+enum AlertPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Alert {
+  id          String        @id @default(cuid())
+  type        AlertType
+  priority    AlertPriority @default(NORMAL)
+  title       String
+  message     String
+  dueDate     DateTime?
+  dismissed   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
